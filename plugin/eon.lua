@@ -1,0 +1,1 @@
+require("eon.commands").setup()
