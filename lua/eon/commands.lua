@@ -1,30 +1,30 @@
 local M = {}
-local pack = require("eon.packages")
+local pack = require("eon.plugins.manager")
 local commands = {
 	{
 		name = "EonReload",
 		command = function(opts)
 			for _, name in pairs(opts.fargs) do
-				pack.packreload(name)
+				pack.reload(name)
 			end
 		end,
 		opts = {
 			nargs = "+",
 		},
 	},
-	{
-		name = "EonDel",
-		command = function(opts)
-			for _, name in pairs(opts.fargs) do
-				if pack.has_pack(name) then
-					pack.packdel(name)
-				end
-			end
-		end,
-		opts = {
-			nargs = "+",
-		},
-	},
+	-- {
+	-- 	name = "EonDel",
+	-- 	command = function(opts)
+	-- 		for _, name in pairs(opts.fargs) do
+	-- 			if pack.has_pack(name) then
+	-- 				pack.del(name)
+	-- 			end
+	-- 		end
+	-- 	end,
+	-- 	opts = {
+	-- 		nargs = "+",
+	-- 	},
+	-- },
 }
 
 function M.setup()
