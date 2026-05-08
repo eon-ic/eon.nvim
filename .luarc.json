@@ -1,0 +1,8 @@
+{
+    "workspace.library": [
+        "$VIMRUNTIME/lua",
+        "${3rd}/luv/library",
+        "/usr/share/nvim/runtime/lua"
+    ],
+    "runtime.version": "LuaJIT"
+}
