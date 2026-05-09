@@ -10,13 +10,15 @@ function M.setup(opts)
     for _, file in ipairs(files) do
         local name = string.match(file, "([^/]+)%.lua$")
         if name ~= "init" then
-           local p =  require("plugins." .. name)
-            if p[1] and type(p[1]) == "table" then
-                for _, pack in ipairs(p) do
-                    PluginManager.add(pack)
+            local p = require("plugins." .. name)
+            if p ~= nil and (type(p) == "table" or type(p) == "string") then
+                if p[1] and type(p[1]) == "table" and type(p) == "table" then
+                    for _, pack in ipairs(p) do
+                        PluginManager.add(pack)
+                    end
+                else
+                    PluginManager.add(p)
                 end
-            else
-                PluginManager.add(p)
             end
         end
     end

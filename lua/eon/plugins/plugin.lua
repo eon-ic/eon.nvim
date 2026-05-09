@@ -1,34 +1,49 @@
 local uv = vim.loop
+local Utils = require("eon.utils")
 --- @class Plugin
 --- @field name string
 --- @field url string
 --- @field opts table?
 --- @field config function?
+--- @field build function?
+--- @field dependencies table?
 local Plugin = {
     name = "",
     url = "",
     opts = nil,
-    config = nil
+    config = nil,
+    build = nil,
+    dependencies = nil
 }
 
-function Plugin:new(name, url, opts, config)
+function Plugin:new(name, url, pack)
+    --- @type Plugin
     local instance = {
         name = name,
         url = url,
-        opts = opts,
-        config = config
+        opts = pack.opts,
+        config = pack.config,
+        build = pack.build,
+        dependencies = pack.dependencies,
     }
     setmetatable(instance, { __index = Plugin })
     return instance
 end
 
 function Plugin:load()
-    -- print("Loading plugin: " .. self.name)
+    if self.dependencies then
+        local PluginsManager = require("eon.plugins.manager")
+        for _, dep in ipairs(self.dependencies) do
+            local name = Utils.get_plugin_name(dep);
+            if not PluginsManager.has(name) then
+                PluginsManager.add(dep)
+            end
+            PluginsManager.plugins[name]:load()
+        end
+    end
     vim.cmd("packadd " .. self.name)
     local module_name = self.name:gsub("%.nvim$", "")
-    -- if package.preload[module_name] ~= nil then
-    local is_load = pcall(require,module_name)
-    -- print("Running setup for plugin: " .. self.name)
+    local is_load = pcall(require, module_name)
     if is_load then
         local pack = package.loaded[module_name]
         if pack.setup ~= nil then
@@ -38,12 +53,13 @@ function Plugin:load()
                 pack.setup()
             end
         end
+        if self.build ~= nil then
+            self.build()
+        end
         if self.config ~= nil then
-            -- print("Running config for plugin: " .. self.name)
-            self.config()
+            self.config(self, self.opts)
         end
     end
-    -- end
 end
 
 function Plugin:unload()

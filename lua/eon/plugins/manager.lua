@@ -1,4 +1,3 @@
-local Plugin = require("eon.plugins.plugin")
 local Utils = require("eon.utils")
 local M = {
     --- @type table<string, Plugin>
@@ -6,14 +5,15 @@ local M = {
 }
 
 function M.add(pack)
+    local Plugin = require("eon.plugins.plugin")
     local src = pack[1] or pack
     if string.match(src, "https?://(.*)") == nil then
 			src = "https://github.com/" .. src;
 	end
-    local name = pack.name or Utils.match_name(src)
+    local name = pack.name or Utils.get_plugin_name(src)
     -- print("Adding plugin: " .. name)
 	vim.pack.add({ { src = src, name = name, version = pack.version } })
-    M.plugins[name] =  Plugin:new(name, src, pack.opts , pack.config)
+    M.plugins[name] =  Plugin:new(name, src, pack)
 end
 
 function M.has(name)
