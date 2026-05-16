@@ -4,6 +4,7 @@ local Plugin = require("eon.plugins.plugin")
 --- @field enable boolean
 --- @field lazy boolean
 --- @field name string?
+--- @field import string?
 --- @field opts table?
 --- @field ft table<string>?
 --- @field event table<string>?
@@ -18,6 +19,7 @@ local default_plugin_config = {
 	lazy = true,
 	enable = true,
 	name = nil,
+	import = nil,
 	opts = nil,
 	dependencies = nil,
 	ft = nil,

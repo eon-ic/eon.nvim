@@ -24,24 +24,29 @@ function Plugin:load()
 	if self.config.enable == false then
 		return
 	end
+	local has_pack = pcall(vim.pack.get, { self.name })
 	vim.cmd("packadd " .. self.name)
-	local module_name = self.name:gsub("%.nvim$", "")
-	local is_load = pcall(require, module_name)
-	if is_load then
-		local pack = package.loaded[module_name]
-		if pack.setup ~= nil then
-			if self.config.opts ~= nil then
-				pack.setup(self.config.opts)
-			else
-				pack.setup()
+	if not has_pack then
+		self:build()
+	end
+	local module_name = self.config.import or self.name:gsub("%.nvim$", ""):gsub("^nvim%-", "")
+	if self.config.config ~= nil then
+		self.config.config(self, self.config.opts)
+	else
+		local is_load = pcall(require, module_name)
+		if is_load then
+			local pack = package.loaded[module_name]
+			if pack.setup ~= nil then
+				if self.config.opts ~= nil then
+					pack.setup(self.config.opts)
+				else
+					pack.setup()
+				end
 			end
 		end
-		if self.config.build ~= nil then
-			self.config.build()
-		end
-		if self.config.config ~= nil then
-			self.config.config(self, self.config.opts)
-		end
+	end
+	if self.config.init ~= nil then
+		self.config.init(self.config.opts)
 	end
 end
 
@@ -71,6 +76,7 @@ function Plugin:update()
 					-- print("Plugin " .. self.name .. " has an update. Reloading...")
 					vim.pack.update({ self.name }, { force = true })
 					self:reload()
+					self:build()
 				end
 			end)
 		else
@@ -81,7 +87,11 @@ function Plugin:update()
 		end
 	end)
 end
-
+function Plugin:build()
+	if self.config.build ~= nil then
+		self.config.build()
+	end
+end
 function Plugin:reload()
 	self:unload()
 	self:load()
