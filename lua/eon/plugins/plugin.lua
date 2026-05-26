@@ -24,10 +24,12 @@ function Plugin:load()
 	if self.config.enable == false then
 		return
 	end
-	local has_pack = pcall(vim.pack.get, { self.name })
-	vim.cmd("packadd " .. self.name)
-	if not has_pack then
-		self:build()
+	if self.config.dev == false then
+		local has_pack = pcall(vim.pack.get, { self.name })
+		vim.cmd("packadd " .. self.name)
+		if not has_pack then
+			self:build()
+		end
 	end
 	local module_name = self.config.import or self.name:gsub("%.nvim$", ""):gsub("^nvim%-", "")
 	if self.config.config ~= nil then
@@ -87,11 +89,13 @@ function Plugin:update()
 		end
 	end)
 end
+
 function Plugin:build()
 	if self.config.build ~= nil then
 		self.config.build()
 	end
 end
+
 function Plugin:reload()
 	self:unload()
 	self:load()

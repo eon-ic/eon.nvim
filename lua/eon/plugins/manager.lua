@@ -3,7 +3,9 @@ local Plugin = require("eon.plugins.plugin")
 --- @class PluginConfig
 --- @field enable boolean
 --- @field lazy boolean
+--- @field dev boolean
 --- @field name string?
+--- @field version string?
 --- @field import string?
 --- @field opts table?
 --- @field ft table<string>?
@@ -13,14 +15,16 @@ local Plugin = require("eon.plugins.plugin")
 --- @field dependencies table<PluginConfig|string>?
 --- @field priority (1|2|3)?
 --- @field init function?
---- @field config function<Plugin,Opts>?
+--- @field config function<Plugin,table>?
 --- @field build function?
 local default_plugin_config = {
+	name = nil,
 	lazy = true,
 	enable = true,
-	name = nil,
 	import = nil,
 	opts = nil,
+	dev = false,
+	version = nil,
 	dependencies = nil,
 	ft = nil,
 	event = nil,
@@ -41,24 +45,40 @@ function M.parser_packs(packs)
 		M.add(p)
 	end
 end
+
+--- @param pack PluginConfig | string?
 function M.add(pack)
-	local src = pack[1] or pack
-	if string.match(src, "https?://(.*)") == nil then
-		src = "https://github.com/" .. src
+	if pack == nil then
+		return
 	end
-	local name = pack.name or Utils.get_plugin_name(src)
-	-- print("Adding plugin: " .. name)
-	vim.pack.add({ { src = src, name = name, version = pack.version } })
+	local src = nil;
 	if type(pack) == "string" then
-		pack = {}
+		src = pack
+	else
+		src = pack[1] or pack.name
 	end
-	local config = vim.tbl_extend("force", pack, { name = name })
-	config = vim.tbl_extend("force", default_plugin_config, config)
-	local plugin = Plugin:new(name, src, config)
-	if config.dependencies then
-		M.parser_packs(config.dependencies)
+	if pack.dev then
+
+	else
+		if src ~= nil then
+			if string.match(src, "https?://(.*)") == nil then
+				src = "https://github.com/" .. src
+			end
+			local name = pack.name or Utils.get_plugin_name(src)
+			-- print("Adding plugin: " .. name)
+			vim.pack.add({ { src = src, name = name, version = pack.version } })
+			if type(pack) == "string" then
+				pack = nil
+			end
+			local config = vim.tbl_extend("force", pack or {}, { name = name })
+			config = vim.tbl_extend("force", default_plugin_config, config)
+			local plugin = Plugin:new(name, src, config)
+			if config.dependencies then
+				M.parser_packs(config.dependencies)
+			end
+			M.plugins[name] = plugin
+		end
 	end
-	M.plugins[name] = plugin
 end
 
 function M.has(name)
@@ -87,11 +107,13 @@ function M.load_all()
 		end,
 	})
 end
+
 function M.check_update()
 	for _, p in pairs(M.plugins) do
 		p:update()
 	end
 end
+
 function M.reload(name)
 	local plugin = M.plugins[name]
 	if plugin then
@@ -100,4 +122,5 @@ function M.reload(name)
 		print("Plugin " .. name .. " not found.")
 	end
 end
+
 return M

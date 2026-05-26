@@ -12,6 +12,12 @@ local commands = {
 			nargs = "+",
 		},
 	},
+	{
+		name = "EonUpdate",
+		command = function(_)
+			pack.check_update()
+		end,
+	},
 	-- {
 	-- 	name = "EonDel",
 	-- 	command = function(opts)
