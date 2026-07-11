@@ -1,5 +1,6 @@
 local Utils = require("eon.utils")
 local Plugin = require("eon.plugins.plugin")
+local EventManager = require("eon.plugins.event")
 --- @class PluginConfig
 --- @field enable boolean
 --- @field lazy boolean
@@ -9,13 +10,13 @@ local Plugin = require("eon.plugins.plugin")
 --- @field import string?
 --- @field opts table?
 --- @field ft table<string>?
---- @field event table<string>?
+--- @field event vim.api.keyset.events|vim.api.keyset.events[]?
 --- @field cmd table<string>?
 --- @field keys table<string>?
 --- @field dependencies table<PluginConfig|string>?
 --- @field priority (1|2|3)?
 --- @field init function?
---- @field config function<Plugin,table>?
+--- @field config function<Plugin,table> | boolean
 --- @field build function?
 local default_plugin_config = {
 	name = nil,
@@ -32,33 +33,54 @@ local default_plugin_config = {
 	keys = nil,
 	priority = nil,
 	init = nil,
-	config = nil,
+	config = true,
 	build = nil,
 }
-local M = {
+local PluginManager = {
 	--- @type table<string, Plugin>
 	plugins = {},
+	--- @type EventManager
+	event = nil,
 }
---- @param packs table<string | table>
-function M.parser_packs(packs)
-	for _, p in ipairs(packs) do
-		M.add(p)
-	end
+function PluginManager:new()
+	local instance = {
+		plugins = {},
+		event = EventManager:new(),
+	}
+	setmetatable(instance, { __index = PluginManager })
+	return instance
 end
 
+--- @param packs table<string | table>
+function PluginManager:parser_packs(packs)
+	for _, p in ipairs(packs) do
+		self.add(p)
+	end
+end
+--- @return Plugin[]
+function PluginManager:parser_dependencies(packs)
+	local plugins = {}
+	for _, p in ipairs(packs) do
+		local plugin = self:add(p)
+		if plugin ~= nil then
+			table.insert(plugins, plugin)
+		end
+	end
+	return plugins
+end
 --- @param pack PluginConfig | string?
-function M.add(pack)
+--- @return Plugin?
+function PluginManager:add(pack)
 	if pack == nil then
 		return
 	end
-	local src = nil;
+	local src = nil
 	if type(pack) == "string" then
 		src = pack
 	else
 		src = pack[1] or pack.name
 	end
 	if pack.dev then
-
 	else
 		if src ~= nil then
 			if string.match(src, "https?://(.*)") == nil then
@@ -74,48 +96,66 @@ function M.add(pack)
 			config = vim.tbl_extend("force", default_plugin_config, config)
 			local plugin = Plugin:new(name, src, config)
 			if config.dependencies then
-				M.parser_packs(config.dependencies)
+				plugin.dependencies = self:parser_dependencies(config.dependencies)
 			end
-			M.plugins[name] = plugin
+			self.plugins[name] = plugin
+			return plugin
 		end
 	end
 end
 
-function M.has(name)
-	return M.plugins[name] ~= nil
+function PluginManager:has(name)
+	return self.plugins[name] ~= nil
 end
 
-function M.del(name)
+function PluginManager:del(name)
 	vim.pack.del({ name }, { force = true })
 end
 
-function M.load_all()
-	--- @type table<string>
-	local lazy_loads = {}
-	for n, p in pairs(M.plugins) do
-		if p.config.lazy == true then
-			table.insert(lazy_loads, n)
+function PluginManager:load_all()
+	--- @type table<vim.api.keyset.events,boolean>
+	local event_names = {}
+	for _, p in pairs(self.plugins) do
+		local enames = p.config.event
+		if enames ~= nil then
+			---@type vim.api.keyset.events[]
+			local names = {}
+			if type(enames) == "string" then
+				table.insert(names, enames)
+			elseif type(enames) == "table" then
+				names = enames
+			end
+			for _, name in pairs(names) do
+				self.event:addlistener(name, function()
+					p:load()
+				end)
+				event_names[name] = true
+			end
+		elseif p.config.lazy == true then
+			vim.schedule(function()
+				p:load()
+			end)
 		else
 			p:load()
 		end
 	end
-	vim.api.nvim_create_autocmd("VimEnter", {
-		callback = function()
-			for _, n in pairs(lazy_loads) do
-				M.plugins[n]:load()
-			end
-		end,
-	})
+	for name, _ in pairs(event_names) do
+		vim.api.nvim_create_autocmd(name, {
+			callback = function()
+				self.event:emit(name)
+			end,
+		})
+	end
 end
 
-function M.check_update()
-	for _, p in pairs(M.plugins) do
+function PluginManager:check_update()
+	for _, p in pairs(self.plugins) do
 		p:update()
 	end
 end
 
-function M.reload(name)
-	local plugin = M.plugins[name]
+function PluginManager:reload(name)
+	local plugin = self.plugins[name]
 	if plugin then
 		plugin:reload()
 	else
@@ -123,4 +163,4 @@ function M.reload(name)
 	end
 end
 
-return M
+return PluginManager
